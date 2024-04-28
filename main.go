@@ -4,7 +4,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"log"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -15,10 +20,39 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	fmt.Println(flags.Input, flags.Output)
+	inputImage, err := openAndReadImage(flags.Input)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+
+	fmt.Println(inputImage.Bounds().Max)
 
 	elapsed := time.Since(start)
-	fmt.Printf("done resizing image in %s\n", elapsed)
+	fmt.Printf("done resizing image in %s ✨✨✨\n", elapsed)
+}
+
+func openAndReadImage(filePath string) (image.Image, error) {
+	fileContent, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer fileContent.Close()
+
+	fileExtension := extractFileExtension(filePath)
+	switch fileExtension {
+	case "jpeg", "jpg":
+		return jpeg.Decode(fileContent)
+	case "png":
+		return png.Decode(fileContent)
+	default:
+		return nil, fmt.Errorf("%s file extension are not supported", fileExtension)
+	}
+}
+
+func extractFileExtension(filePath string) string {
+	filePathSplitByDots := strings.Split(filePath, ".")
+	fileExtension := filePathSplitByDots[len(filePathSplitByDots)-1]
+	return fileExtension
 }
 
 type Flags struct {
