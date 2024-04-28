@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/image/draw"
 )
 
 func main() {
@@ -26,10 +28,27 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	fmt.Println(inputImage.Bounds().Max, flags.Width, flags.Height)
+	_, err = createResizedImage(inputImage, flags.Output, flags.Dimensions)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
 
 	elapsed := time.Since(start)
 	fmt.Printf("done resizing image in %s ✨✨✨\n", elapsed)
+}
+
+func createResizedImage(inputImage image.Image, outputPath string, desiredDimensions Dimensions) (*os.File, error) {
+	outputImage, err := os.Create(outputPath)
+	if err != nil {
+		return nil, err
+	}
+	defer outputImage.Close()
+
+	outputImageSpec := image.NewRGBA(image.Rect(0, 0, desiredDimensions.Width, desiredDimensions.Height))
+	draw.NearestNeighbor.Scale(outputImageSpec, outputImageSpec.Rect, inputImage, inputImage.Bounds(), draw.Over, nil)
+	png.Encode(outputImage, outputImageSpec)
+
+	return outputImage, nil
 }
 
 func openAndReadImage(filePath string) (image.Image, error) {
@@ -56,11 +75,15 @@ func extractFileExtension(filePath string) string {
 	return fileExtension
 }
 
-type Flags struct {
-	Input  string
-	Output string
+type Dimensions struct {
 	Width  int
 	Height int
+}
+
+type Flags struct {
+	Input      string
+	Output     string
+	Dimensions Dimensions
 }
 
 func initializeFlags() (*Flags, error) {
@@ -68,6 +91,7 @@ func initializeFlags() (*Flags, error) {
 	outputPath := flag.String("o", "", "output path")
 	dimensions := flag.String("d", "", "dimensions")
 	flag.Parse()
+
 	if *outputPath == "" {
 		return nil, errors.New("no output path provided\nplease give a output path by giving this command the -o flag with the destination")
 	}
@@ -96,7 +120,9 @@ func initializeFlags() (*Flags, error) {
 	return &Flags{
 		Input:  *inputPath,
 		Output: *outputPath,
-		Width:  dimensionsAsIntegers[0],
-		Height: dimensionsAsIntegers[1],
+		Dimensions: Dimensions{
+			Width:  dimensionsAsIntegers[0],
+			Height: dimensionsAsIntegers[1],
+		},
 	}, nil
 }
